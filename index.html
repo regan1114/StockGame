@@ -1,0 +1,391 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>持股命運決定盤</title>
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+      body {
+        font-family: Arial, sans-serif;
+        background-color: #f5f5f5;
+        display: flex;
+        justify-content: center;
+        padding: 20px;
+      }
+      #app {
+        width: 100%;
+        max-width: 500px;
+      }
+      .container {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        padding: 24px;
+        background-color: #f9fafb;
+        border-radius: 8px;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+      }
+      h2 {
+        font-size: 24px;
+        font-weight: bold;
+        color: #1f2937;
+        margin-bottom: 24px;
+      }
+      .wheel-container {
+        position: relative;
+        width: 256px;
+        height: 256px;
+        margin-bottom: 32px;
+      }
+      .wheel {
+        width: 100%;
+        height: 100%;
+        position: relative;
+      }
+      .wheel svg {
+        width: 100%;
+        height: 100%;
+        border-radius: 50%;
+        border: 4px solid #1f2937;
+      }
+      .pointer {
+        position: absolute;
+        top: 0;
+        left: 50%;
+        width: 24px;
+        height: 40px;
+        margin-left: -12px;
+        background-color: #dc2626;
+        clip-path: polygon(50% 0, 100% 50%, 50% 100%, 0 50%);
+        z-index: 20;
+      }
+      .spin-button {
+        padding: 8px 24px;
+        border-radius: 9999px;
+        font-weight: 600;
+        color: white;
+        margin-bottom: 16px;
+        border: none;
+        cursor: pointer;
+        background-color: #2563eb;
+      }
+      .spin-button:hover {
+        background-color: #1d4ed8;
+      }
+      .spin-button:disabled {
+        background-color: #6b7280;
+        cursor: not-allowed;
+      }
+      .result {
+        text-align: center;
+        background-color: #fef3c7;
+        padding: 16px;
+        border-radius: 8px;
+        margin-bottom: 24px;
+        width: 100%;
+      }
+      .result p:first-child {
+        font-size: 18px;
+        font-weight: bold;
+        color: #1f2937;
+      }
+      .result p:last-child {
+        font-size: 24px;
+        font-weight: bold;
+        color: #dc2626;
+      }
+      .custom-options {
+        width: 100%;
+        margin-top: 16px;
+      }
+      .custom-options h3 {
+        font-size: 18px;
+        font-weight: 600;
+        color: #4b5563;
+        margin-bottom: 8px;
+      }
+      .input-group {
+        display: flex;
+      }
+      .input-group input {
+        flex: 1;
+        padding: 8px;
+        border: 1px solid #d1d5db;
+        border-right: none;
+        border-top-left-radius: 6px;
+        border-bottom-left-radius: 6px;
+        outline: none;
+      }
+      .input-group input:focus {
+        outline: 2px solid #3b82f6;
+      }
+      .input-group button {
+        padding: 8px 16px;
+        background-color: #059669;
+        color: white;
+        border: none;
+        border-top-right-radius: 6px;
+        border-bottom-right-radius: 6px;
+        cursor: pointer;
+      }
+      .input-group button:hover {
+        background-color: #047857;
+      }
+      .options-grid {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 8px;
+        margin-top: 16px;
+      }
+      .option-item {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        background-color: white;
+        padding: 8px;
+        border-radius: 4px;
+        border: 1px solid #e5e7eb;
+      }
+      .delete-btn {
+        font-size: 14px;
+        padding: 4px 8px;
+        border-radius: 4px;
+        border: none;
+        cursor: pointer;
+        background-color: #ef4444;
+        color: white;
+      }
+      .delete-btn:hover {
+        background-color: #dc2626;
+      }
+      .delete-btn:disabled {
+        background-color: #d1d5db;
+        color: #6b7280;
+        cursor: not-allowed;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="app">
+      <div class="container">
+        <h2>今天持股怎麼處理？</h2>
+
+        <div class="wheel-container">
+          <div class="wheel">
+            <svg
+              viewBox="0 0 64 64"
+              :style="{
+              transform: `rotate(${rotation}deg)`,
+              transition: spinning ? 'transform 3s cubic-bezier(0.17, 0.67, 0.83, 0.67)' : 'none'
+            }"
+            >
+              <g v-for="(option, index) in options" :key="index">
+                <!-- 扇形區塊 -->
+                <path
+                  :d="getSlicePath(index)"
+                  :fill="colors[index % colors.length]"
+                  stroke="#FFFFFF"
+                  stroke-width="0.5"
+                />
+
+                <!-- 文字標籤 -->
+                <text
+                  :x="getTextX(index)"
+                  :y="getTextY(index)"
+                  fill="white"
+                  font-size="3"
+                  font-weight="bold"
+                  text-anchor="middle"
+                  dominant-baseline="middle"
+                  :transform="`rotate(${getMidAngle(index) + 90}, ${getTextX(index)}, ${getTextY(index)})`"
+                  style="text-shadow: 0px 0px 2px #000000"
+                >
+                  {{ option }}
+                </text>
+              </g>
+
+              <!-- 中心圓 -->
+              <circle cx="32" cy="32" r="4" fill="#333333" />
+              <circle cx="32" cy="32" r="2" fill="#FFFFFF" />
+            </svg>
+
+            <!-- 指針 -->
+            <div class="pointer"></div>
+          </div>
+        </div>
+
+        <!-- 旋轉按鈕 -->
+        <button class="spin-button" @click="spin" :disabled="spinning">
+          {{ spinning ? '旋轉中...' : '開始旋轉' }}
+        </button>
+
+        <!-- 結果顯示 -->
+        <div v-if="result" class="result">
+          <p>今天午餐吃：</p>
+          <p>{{ result }}</p>
+        </div>
+
+        <!-- 自定義選項 -->
+        <div class="custom-options">
+          <h3>自定義選項</h3>
+          <div class="input-group">
+            <input
+              type="text"
+              v-model="newOption"
+              @keyup.enter="addOption"
+              placeholder="輸入新選項..."
+            />
+            <button @click="addOption">新增</button>
+          </div>
+
+          <div class="options-grid">
+            <div
+              v-for="(option, index) in options"
+              :key="index"
+              class="option-item"
+            >
+              <span>{{ option }}</span>
+              <button
+                class="delete-btn"
+                @click="removeOption(index)"
+                :disabled="options.length <= 2"
+              >
+                刪除
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      const { createApp, ref } = Vue;
+
+      createApp({
+        setup() {
+          const rotation = ref(0);
+          const spinning = ref(false);
+          const result = ref(null);
+          const options = ref([
+            "買進",
+            "賣出",
+            "當沖",
+            "價值投資",
+            "左側交易",
+            "右側交易",
+            "停損",
+            "停利",
+          ]);
+          const newOption = ref("");
+
+          const colors = [
+            "#FF6B6B",
+            "#4ECDC4",
+            "#FFD166",
+            "#06D6A0",
+            "#118AB2",
+            "#073B4C",
+            "#FF9F1C",
+            "#2EC4B6",
+          ];
+
+          const spin = () => {
+            if (spinning.value) return;
+
+            result.value = null;
+            spinning.value = true;
+
+            // 隨機旋轉角度 (2-5圈加上隨機位置)
+            const spinDegrees = 720 + Math.random() * 1080;
+            rotation.value += spinDegrees;
+
+            // 計時結束後顯示結果
+            setTimeout(() => {
+              spinning.value = false;
+
+              // 計算指針指向的選項
+              const normalizedDegree = rotation.value % 360;
+              const segmentSize = 360 / options.value.length;
+              const selectedIndex = Math.floor(normalizedDegree / segmentSize);
+              result.value = options.value[selectedIndex];
+            }, 3000);
+          };
+
+          const addOption = () => {
+            if (
+              newOption.value.trim() !== "" &&
+              !options.value.includes(newOption.value.trim())
+            ) {
+              options.value.push(newOption.value.trim());
+              newOption.value = "";
+            }
+          };
+
+          const removeOption = (index) => {
+            if (options.value.length > 2) {
+              options.value.splice(index, 1);
+            }
+          };
+
+          // 獲取扇形路徑
+          const getSlicePath = (index) => {
+            const angle = 360 / options.value.length;
+            const startAngle = index * angle;
+            const endAngle = (index + 1) * angle;
+
+            return `M32,32 
+                 L${32 + 32 * Math.cos((startAngle * Math.PI) / 180)},${
+              32 + 32 * Math.sin((startAngle * Math.PI) / 180)
+            } 
+                 A32,32 0 0,1 ${
+                   32 + 32 * Math.cos((endAngle * Math.PI) / 180)
+                 },${32 + 32 * Math.sin((endAngle * Math.PI) / 180)} 
+                 Z`;
+          };
+
+          // 獲取扇形中點角度
+          const getMidAngle = (index) => {
+            const angle = 360 / options.value.length;
+            return index * angle + angle / 2;
+          };
+
+          // 獲取文字X座標
+          const getTextX = (index) => {
+            const midAngle = getMidAngle(index);
+            const textRadius = 22; // 調整文字位置
+            return 32 + textRadius * Math.cos((midAngle * Math.PI) / 180);
+          };
+
+          // 獲取文字Y座標
+          const getTextY = (index) => {
+            const midAngle = getMidAngle(index);
+            const textRadius = 22; // 調整文字位置
+            return 32 + textRadius * Math.sin((midAngle * Math.PI) / 180);
+          };
+
+          return {
+            rotation,
+            spinning,
+            result,
+            options,
+            newOption,
+            colors,
+            spin,
+            addOption,
+            removeOption,
+            getSlicePath,
+            getMidAngle,
+            getTextX,
+            getTextY,
+          };
+        },
+      }).mount("#app");
+    </script>
+  </body>
+</html>
